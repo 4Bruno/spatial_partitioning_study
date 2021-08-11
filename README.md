@@ -4,7 +4,7 @@ Testing hierarchical grids for spatial partitioning
 # Build (Windows)
 ```
 mkdir spatial_partitioning_study
-git clone
+git clone https://github.com/4Bruno/spatial_partitioning_study.git
 cd spatial_partitioning_study\src
 ..\debug_build.bat
 ```

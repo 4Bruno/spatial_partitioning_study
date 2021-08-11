@@ -1,7 +1,7 @@
 
-/debug
-/release
-/.vs
+debug/
+release/
+.vs/
 *temp*
 *.vim
 *.clang_complete

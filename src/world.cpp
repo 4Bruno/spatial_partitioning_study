@@ -4,9 +4,22 @@
 u32
 WorldPosHash(world * World,world_pos P)
 {
-    u32 HashKey = ((P.x * 45691) + (P.y * 95009) + (P.z * 26041)) 
-                     & 
-                     World->HashGridSizeMinusOne; // must be power of 2
+    u32 HashX = (P.x ) & (World->HashGridX - 1);
+    u32 HashY = (P.y ) & (World->HashGridY - 1);
+    u32 HashZ = (P.z ) & (World->HashGridZ - 1);
+
+    u32 HashKey = HashX +
+                  HashY * World->HashGridX +
+                  HashZ * (World->HashGridX * World->HashGridY);
+
+    return HashKey;
+}
+
+u32
+WorldPosHash(world * World,u32 X, u32 Y, u32 Z)
+{
+    world_pos P = WorldPosition(X,Y,Z);
+    u32 HashKey = WorldPosHash(World,P);
     return HashKey;
 }
 
@@ -83,8 +96,12 @@ CellPrintNeighbors(world * World,entity * Entity)
         i32 Z = (NeighborIndex / 9) - 1;
         i32 Y = (NeighborIndex % 3) - 1;
         i32 X = ((NeighborIndex / 3) % 3) - 1;
+        u32 PX = Cell->x + X;
+        u32 PY = Cell->y + Y;
+        u32 PZ = Cell->z + Z;
+        //if (Z == -1 && X == 1 && Y == 0) { Assert(0); }
         i32 IndexOffset = Cell->Neighbor->Offset[NeighborIndex];
-        Logn("Neighbor Z:%i Y:%i X:%i V:%i", Z, Y , X, IndexOffset);
+        Logn("Neighbor X:%i Y:%i Z:%i V:%i", PX, PY , PZ, IndexOffset);
         world_cell * TestCell = World->HashGrid[(CellHashIndex + IndexOffset) % (World->HashGridSizeMinusOne)];
         if (TestCell)
         {
@@ -94,16 +111,10 @@ CellPrintNeighbors(world * World,entity * Entity)
 }
 
 void
-BuildHierarchicalGridInnerNeighbors(world * World,cell_neighbor_offset * Neighbors, u32 DimX, u32 DimY, u32 DimZ)
+BuildHierarchicalGridInnerNeighbors(cell_neighbor_offset * Neighbors, u32 DimX, u32 DimY, u32 DimZ)
 {
-
     Assert(DimZ >= 4 && DimX >= 4 && DimY >= 4);
     u32 NeighborIndex = 0;
-
-    u32 RefP = UINT32_MAX/2;
-    world_pos ArbitraryWorldP = WorldPosition(RefP, RefP, RefP);
-
-    u32 ArbitraryWorldPHash = WorldPosHash(World,ArbitraryWorldP);
 
     for (i32 Z = -1;
                 Z <= 1;
@@ -120,13 +131,9 @@ BuildHierarchicalGridInnerNeighbors(world * World,cell_neighbor_offset * Neighbo
                     ++X)
             {
                 i32 OffsetX = X;
-                world_pos P2 = ArbitraryWorldP;
-                P2.z += Z;
-                P2.y += Y;
-                P2.x += X;
-                u32 TestHash = WorldPosHash(World,P2);
-                //Neighbors->Offset[NeighborIndex] = OffsetZ + OffsetY + OffsetX;
-                Neighbors->Offset[NeighborIndex] = (TestHash - ArbitraryWorldPHash);
+                //Neighbors->Offset[NeighborIndex] = (ArbitraryWorldPHash - TestHash );
+                //Neighbors->Offset[NeighborIndex] = (TestHash - ArbitraryWorldPHash );
+                Neighbors->Offset[NeighborIndex] = OffsetZ + OffsetY + OffsetX;
                 //Logn("Neighbor Z:%i Y:%i X:%i V:%i", Z, Y , X, Neighbors->Offset[NeighborIndex]);
                 ++NeighborIndex;
             }
@@ -157,7 +164,7 @@ NewWorld(memory_arena * Arena, u32 DimX, u32 DimY, u32 DimZ)
     u32 BitsOccupancyCount = CountCells / 64; 
     World.HashGridOccupancy = PushArray(Arena, intptr_t, BitsOccupancyCount);
 
-    BuildHierarchicalGridInnerNeighbors(&World,&World.InnerNeighbors, DimX, DimY, DimZ);
+    BuildHierarchicalGridInnerNeighbors(&World.InnerNeighbors, DimX, DimY, DimZ);
 
     return World;
 }
@@ -175,6 +182,7 @@ entity *
 AddEntity(world * World, world_pos WorldP)
 {
     u32 Hash = WorldPosHash(World,WorldP);
+    Logn("Creating entity with hash %i",Hash);
 
     world_cell ** Cell = (World->HashGrid + Hash);
 

@@ -19,7 +19,7 @@ void
 TestPrintHashAtPos(world * World, u32 X, u32 Y, u32 Z)
 {
     world_pos P = WorldPosition(X,Y,Z);
-    world_pos P2 = WorldPosition(X-1,Y-1,Z-1);
+    world_pos P2 = WorldPosition(X+1,Y,Z-1);
 
     u32 Hash = WorldPosHash(World,P);
     u32 Hash2 = WorldPosHash(World,P2);
@@ -47,8 +47,11 @@ main()
 #if 1
     entity * Entity = AddEntity(&World, WorldPosition(20,20,20));
     entity * Entity2 = AddEntity(&World, WorldPosition(19,19,19));
+    entity * Entity3 = AddEntity(&World, WorldPosition(21,20,19));
 
-    //CellPrintNeighbors(&World, Entity);
+#if 1
+    CellPrintNeighbors(&World, Entity);
+#else
     for (neighbor_iterator Iterator = GetNeighborIterator(&World,Entity);
             Iterator.CanContinue;
             AdvanceIterator(&World,&Iterator))
@@ -59,6 +62,7 @@ main()
             Logn("Neighbor exists for X:%i Y:%i Z:%i",NeighborCell->x,NeighborCell->y,NeighborCell->z);
         }
     }
+#endif
 
 #else
 

@@ -4,7 +4,7 @@
 #include <stdio.h>
 
 #define ArrayCount(a) (sizeof(a) / sizeof(a[0]))
-#define Assert(exp) if (!(exp)) { void * i = (void *)0; };
+#define Assert(exp) if (!(exp)) { *(volatile int *)0 = 0; } 
 
 #define internal static
 

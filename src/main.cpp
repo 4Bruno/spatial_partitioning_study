@@ -8,11 +8,23 @@
 void *
 Win32ReserveMemory(u32 Size)
 {
-    void * SystemMemory = VirtualAlloc(NULL, Size, MEM_COMMIT | MEM_RESERVE, PAGE_NOACCESS);
+    void * SystemMemory = VirtualAlloc(NULL, Size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     
     Assert(SystemMemory);
 
     return SystemMemory;
+}
+
+void
+TestPrintHashAtPos(world * World, u32 X, u32 Y, u32 Z)
+{
+    world_pos P = WorldPosition(X,Y,Z);
+    world_pos P2 = WorldPosition(X-1,Y-1,Z-1);
+
+    u32 Hash = WorldPosHash(World,P);
+    u32 Hash2 = WorldPosHash(World,P2);
+
+    Logn("P1: %i P2: %i Diff:%i", Hash, Hash2, Hash - Hash2);
 }
 
 int 
@@ -32,22 +44,29 @@ main()
 
     world World = NewWorld(&Arena, 16, 16, 16);
 
-    world_pos P = WorldPosition((UINT_MAX / 2),(UINT_MAX / 2),(UINT_MAX / 2));
-    world_pos P2 = WorldPosition((UINT_MAX / 2),(UINT_MAX / 2),(UINT_MAX / 2)-1);
+#if 1
+    entity * Entity = AddEntity(&World, WorldPosition(20,20,20));
+    entity * Entity2 = AddEntity(&World, WorldPosition(19,19,19));
 
-    world_pos P3 = WorldPosition(20,20,20);
-    world_pos P4 = WorldPosition(20,20,20-1);
+    //CellPrintNeighbors(&World, Entity);
+    for (neighbor_iterator Iterator = GetNeighborIterator(&World,Entity);
+            Iterator.CanContinue;
+            AdvanceIterator(&World,&Iterator))
+    {
+        world_cell * NeighborCell = Iterator.Current;
+        if (NeighborCell)
+        {
+            Logn("Neighbor exists for X:%i Y:%i Z:%i",NeighborCell->x,NeighborCell->y,NeighborCell->z);
+        }
+    }
 
-    u32 Hash = WorldPosHash(&World,P);
-    u32 Hash2 = WorldPosHash(&World,P2);
+#else
 
-    Logn("P1: %i P2: %i Diff:%i", Hash, Hash2, Hash - Hash2);
-
-    Hash = WorldPosHash(&World,P3);
-    Hash2 = WorldPosHash(&World,P4);
-
-    Logn("P1: %i P2: %i Diff:%i", Hash, Hash2, Hash - Hash2);
-
+    TestPrintHashAtPos(&World, UINT_MAX / 2,UINT_MAX / 2, UINT_MAX / 2);
+    TestPrintHashAtPos(&World, 20,20,20);
+    //TestPrintHashAtPos(&World, 15,34,84);
+    
+#endif
 
     return 0;
 

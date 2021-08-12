@@ -45,11 +45,14 @@ struct world_cell
 {
     // uniquely identifies cell
     u32 x, y , z;
+    u32 HashIndex;
 
-    cell_neighbor_offset * Neightbor;
+    cell_neighbor_offset * Neighbor;
 
     // For this cell, all data chunks associated as a linked list
     world_cell_data * FirstCellData;
+
+    world_cell * NextCell;
 };
 
 /*
@@ -81,6 +84,28 @@ struct world
 
 };
 
+struct neighbor_iterator
+{
+    world_cell * Current;
+    u32 CurrentNeighborIndex;
+    cell_neighbor_offset * Neighbors;
+    u32 CenterHashIndex;
+    b32 CanContinue;
+};
+
+struct entity_id
+{
+    u32 ID;
+};
+
+struct entity
+{
+    entity_id ID;    
+    world_pos WorldP;
+    v3 P;
+};
+
+
 world
 NewWorld(memory_arena * Arena, u32 DimX, u32 DimY, u32 DimZ);
 
@@ -89,6 +114,18 @@ WorldPosHash(world * World,world_pos P);
 
 world_pos
 WorldPosition(u32 X, u32 Y, u32 Z, v3 Offset = V30);
+
+void
+CellPrintNeighbors(world * World,entity * Entity);
+
+entity *
+AddEntity(world * World, world_pos P);
+
+neighbor_iterator
+GetNeighborIterator(world * World,entity * Entity);
+
+void
+AdvanceIterator(world * World, neighbor_iterator * Iterator);
 
 #define WORLD
 #endif

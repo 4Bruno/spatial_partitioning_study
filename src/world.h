@@ -12,6 +12,9 @@
 struct world_pos
 {
     // Those are x,y,z positions in the world grid
+    // using float allows for a 4 Kilometers world
+    // (where objects are size of 0.02 mm - grand of sand)
+    // by using u32 x/y/z we have more size
     u32 x, y ,z;
     // Within our grid cell, float precission offset
     v3 _Offset;
@@ -62,22 +65,26 @@ struct world_cell
 struct world
 {
     // arbitrary for memory/speed trade-off
+    // MUST be power of 2 - preferred 16
     v3 GridCellDimInMeters;
 
     // used for unique entity ID
     u32 TotalWorldEntities;
 
+    // Grid dimensions
     u32 HashGridX,HashGridY,HashGridZ;
+    u32 HashGridXMinusOne,HashGridYMinusOne,HashGridZMinusOne;
 
+    u32 HashGridSizeMinusOne;
     world_cell ** HashGrid;
     intptr_t * HashGridOccupancy;
-    u32 HashGridSizeMinusOne;
 
+    // Constant for all cells not in edge
     cell_neighbor_offset InnerNeighbors;
     // Based on Grid size
     cell_neighbor_offset * OuterNeighbors;
-
-    world_cell * FreeListWorldCells;
+    
+    world_cell      * FreeListWorldCells;
     world_cell_data * FreeListWorldCellData;
 
     memory_arena * Arena;
@@ -90,6 +97,7 @@ struct neighbor_iterator
     u32 CurrentNeighborIndex;
     cell_neighbor_offset * Neighbors;
     u32 CenterHashIndex;
+    u32 x,y,z;
     b32 CanContinue;
 };
 
@@ -114,9 +122,6 @@ WorldPosHash(world * World,world_pos P);
 
 world_pos
 WorldPosition(u32 X, u32 Y, u32 Z, v3 Offset = V30);
-
-void
-CellPrintNeighbors(world * World,entity * Entity);
 
 entity *
 AddEntity(world * World, world_pos P);

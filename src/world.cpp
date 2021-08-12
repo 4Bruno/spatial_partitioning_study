@@ -4,9 +4,9 @@
 u32
 WorldPosHash(world * World,world_pos P)
 {
-    u32 HashX = (P.x ) & (World->HashGridX - 1);
-    u32 HashY = (P.y ) & (World->HashGridY - 1);
-    u32 HashZ = (P.z ) & (World->HashGridZ - 1);
+    u32 HashX = (P.x) & World->HashGridXMinusOne;
+    u32 HashY = (P.y) & World->HashGridYMinusOne;
+    u32 HashZ = (P.z) & World->HashGridZMinusOne;
 
     u32 HashKey = HashX +
                   HashY * World->HashGridX +
@@ -38,28 +38,57 @@ GetWorldCell(world * World, world_pos P)
 
     world_cell * Cell = World->HashGrid[Hash];
 
+    while (Cell && 
+           (Cell->x != P.x || Cell->y != P.y || Cell->z != P.z)
+           )
+    {
+        Cell = Cell->NextCell;
+    }
+
     return Cell;
 }
 
+
+inline world_cell *
+GetWorldCellInternal(world * World, u32 StartHashIndex, i32 OffsetIndex, u32 X, u32 Y, u32 Z)
+{
+    world_cell * Cell = 
+        World->HashGrid[(StartHashIndex + OffsetIndex) & (World->HashGridSizeMinusOne)];
+
+    while (Cell && 
+           (Cell->x != X || Cell->y != Y || Cell->z != Z)
+           )
+    {
+        Cell = Cell->NextCell;
+    }
+
+    return Cell;
+}
 
 neighbor_iterator
 GetNeighborIterator(world * World,entity * Entity)
 {
     world_pos P = Entity->WorldP;
     world_cell * Cell  = GetWorldCell(World, Entity->WorldP);
+
+    Assert(Cell);
+
     u32 CellHashIndex = Cell->HashIndex;
 
     neighbor_iterator Iterator;
 
     i32 IndexOffset = Cell->Neighbor->Offset[0];
     world_cell * BottomLeft = 
-        World->HashGrid[(CellHashIndex + IndexOffset) % (World->HashGridSizeMinusOne)];
+        GetWorldCellInternal(World, CellHashIndex, IndexOffset, P.x - 1, P.y - 1, P.z - 1);
 
     Iterator.Current             = BottomLeft;     // world_cell * Current;
     Iterator.Neighbors           = Cell->Neighbor; // cell_neighbor_offset * Neighbors;
     Iterator.CurrentNeighborIndex= 0;
     Iterator.CenterHashIndex     = CellHashIndex;
     Iterator.CanContinue         = true;
+    Iterator.x = P.x;
+    Iterator.y = P.y;
+    Iterator.z = P.z;
 
     return Iterator;
 }
@@ -67,48 +96,27 @@ GetNeighborIterator(world * World,entity * Entity)
 void
 AdvanceIterator(world * World, neighbor_iterator * Iterator)
 {
-    i32 IndexOffset = Iterator->Neighbors->Offset[++Iterator->CurrentNeighborIndex];
+    i32 CurrentIndex = ++Iterator->CurrentNeighborIndex;
+    i32 IndexOffset = Iterator->Neighbors->Offset[CurrentIndex];
 
-    if (Iterator->CurrentNeighborIndex > 26)
+    if (CurrentIndex > 26)
     {
         Iterator->CanContinue = false;
     }
     else
     {
+        i32 Z = (i32)(CurrentIndex * (1.0f / 9.0f)) - 1;
+        i32 X = (i32)(CurrentIndex % 3) - 1;
+        i32 Y = ((i32)(CurrentIndex * (1.0f / 3.0f)) % 3) - 1;
+        //Logn("Neighbor X:%i Y:%i Z:%i V:%i", X, Y , Z, CurrentIndex);
+
         world_cell * Next = 
-            World->HashGrid[(Iterator->CenterHashIndex + IndexOffset) % (World->HashGridSizeMinusOne)];
+            GetWorldCellInternal(World, Iterator->CenterHashIndex, IndexOffset, 
+                                 Iterator->x + X,Iterator->y + Y,Iterator->z + Z);;
         Iterator->Current   = Next;     // world_cell * Current;
     }
 }
 
-void
-CellPrintNeighbors(world * World,entity * Entity)
-{
-    world_pos P = Entity->WorldP;
-    world_cell * Cell  = GetWorldCell(World, Entity->WorldP);
-    u32 CellHashIndex = Cell->HashIndex;
-
-    for (i32 NeighborIndex = 0;
-                NeighborIndex < 27;
-                ++NeighborIndex)
-    {
-        //Logn("Neighbor: %i",Cell->Neighbor->Offset[NeighborIndex]);
-        i32 Z = (NeighborIndex / 9) - 1;
-        i32 Y = (NeighborIndex % 3) - 1;
-        i32 X = ((NeighborIndex / 3) % 3) - 1;
-        u32 PX = Cell->x + X;
-        u32 PY = Cell->y + Y;
-        u32 PZ = Cell->z + Z;
-        //if (Z == -1 && X == 1 && Y == 0) { Assert(0); }
-        i32 IndexOffset = Cell->Neighbor->Offset[NeighborIndex];
-        Logn("Neighbor X:%i Y:%i Z:%i V:%i", PX, PY , PZ, IndexOffset);
-        world_cell * TestCell = World->HashGrid[(CellHashIndex + IndexOffset) % (World->HashGridSizeMinusOne)];
-        if (TestCell)
-        {
-            Logn("Cell exists for X:%i Y:%i Z:%i",TestCell->x,TestCell->y,TestCell->z);
-        }
-    }
-}
 
 void
 BuildHierarchicalGridInnerNeighbors(cell_neighbor_offset * Neighbors, u32 DimX, u32 DimY, u32 DimZ)
@@ -131,10 +139,7 @@ BuildHierarchicalGridInnerNeighbors(cell_neighbor_offset * Neighbors, u32 DimX, 
                     ++X)
             {
                 i32 OffsetX = X;
-                //Neighbors->Offset[NeighborIndex] = (ArbitraryWorldPHash - TestHash );
-                //Neighbors->Offset[NeighborIndex] = (TestHash - ArbitraryWorldPHash );
                 Neighbors->Offset[NeighborIndex] = OffsetZ + OffsetY + OffsetX;
-                //Logn("Neighbor Z:%i Y:%i X:%i V:%i", Z, Y , X, Neighbors->Offset[NeighborIndex]);
                 ++NeighborIndex;
             }
         }
@@ -159,6 +164,10 @@ NewWorld(memory_arena * Arena, u32 DimX, u32 DimY, u32 DimZ)
     World.HashGridY = DimY;
     World.HashGridZ = DimZ;
 
+    World.HashGridXMinusOne = DimX - 1;
+    World.HashGridYMinusOne = DimY - 1;
+    World.HashGridZMinusOne = DimZ - 1;
+
     World.HashGrid = PushArray(Arena, world_cell *, CountCells);
     // We will write bit via accesing 64 bits at a time
     u32 BitsOccupancyCount = CountCells / 64; 
@@ -182,12 +191,12 @@ entity *
 AddEntity(world * World, world_pos WorldP)
 {
     u32 Hash = WorldPosHash(World,WorldP);
-    Logn("Creating entity with hash %i",Hash);
+    //Logn("Creating entity with hash %i",Hash);
 
     world_cell ** Cell = (World->HashGrid + Hash);
 
     while ((*Cell) &&
-            ((*Cell)->x != WorldP.x && (*Cell)->y != WorldP.y && (*Cell)->z != WorldP.z)
+            ((*Cell)->x != WorldP.x || (*Cell)->y != WorldP.y || (*Cell)->z != WorldP.z)
           )
     {
         Cell = &(*Cell)->NextCell;
@@ -218,13 +227,13 @@ AddEntity(world * World, world_pos WorldP)
     world_cell_data ** CellData = &(*Cell)->FirstCellData;
 
     while ( (*CellData) && 
-            ((*CellData)->DataSize + EntitySize) < ArrayCount((*CellData)->Data) )
+            ((*CellData)->DataSize + EntitySize) > ArrayCount((*CellData)->Data) )
     {
         CellData = &(*CellData)->Next;
     }
 
     if (!(*CellData) || 
-        ((*CellData)->DataSize + EntitySize) < ArrayCount((*CellData)->Data))
+        ((*CellData)->DataSize + EntitySize) > ArrayCount((*CellData)->Data))
     {
         if (!World->FreeListWorldCellData)
         {

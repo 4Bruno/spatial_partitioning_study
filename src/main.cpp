@@ -6,6 +6,7 @@
 #include "world.h"
 #include "memory.h"
 
+
 void *
 Win32ReserveMemory(u32 Size)
 {
@@ -85,6 +86,49 @@ TestNeighbors(world * World, world_pos WorldP)
     }
 }
 
+void
+TestRecanonicalize(world * World)
+{
+    world_pos RefWP = WorldPosition(20,20,20, V3(0.8f, 0.5f, 0));
+    Logn("Start at:");LOG_WORLD_POS(RefWP);
+    entity * Entity = AddEntity(World, RefWP);
+    v3 dP = V3(1.0f,0,0);
+    world_pos P = MapIntoCell(World, RefWP, dP);
+    LOG_WORLD_POS(P);
+    dP = V3(-1.0f - 0.8f,0,0);
+    P = MapIntoCell(World, RefWP, dP);
+    LOG_WORLD_POS(P);
+
+    RefWP = WorldPosition(20,20,20, V3(0.0f, 0.0f, 0));
+    Logn("Start at:");LOG_WORLD_POS(RefWP);
+    Entity = AddEntity(World, RefWP);
+    dP = V3(1.0f,0,0);
+    P = MapIntoCell(World, RefWP, dP);
+    LOG_WORLD_POS(P);
+    dP = V3(-1.0f - 0.8f,-3.3f,0);
+    P = MapIntoCell(World, RefWP, dP);
+    LOG_WORLD_POS(P);
+}
+
+void
+DoTests(world * World)
+{
+    //TestCollision(World);
+
+    //Logn(" ------------------ Test 1 ------------------");
+    //TestPrintHashAtPos(World);
+
+    //Logn(" ------------------ Test 2 ------------------");
+    //TestPrintInnerNeighborArrayOffsets(World);
+
+    //Logn(" ------------------ Test 3 ------------------");
+    TestNeighbors(World,WorldPosition(INT32_MAX/2,INT32_MAX/2,INT32_MAX/2));
+    TestNeighbors(World,WorldPosition(20,20,20));
+    TestNeighbors(World,WorldPosition(20,36,20));
+    
+    //TestRecanonicalize(World);
+}
+
 int 
 main()
 {
@@ -101,18 +145,22 @@ main()
 
     world World = NewWorld(&Arena, 16, 16, 16);
 
-    //TestCollision(&World);
+    //DoTests(World)
+    world_pos P = WorldPosition(0,0,0);
+    world_pos P2 = WorldPosition(13,0,0);
+    v3 Dim = V3(20.0f,3.0f,20.0f);
+    entity * EntityA = AddEntity(&World, P);
+    entity * EntityB = AddEntity(&World, P2);
 
-    //Logn(" ------------------ Test 1 ------------------");
-    //TestPrintHashAtPos(&World);
+    UpdateWorldLocation(&World, P, Dim);
 
-    //Logn(" ------------------ Test 2 ------------------");
-    //TestPrintInnerNeighborArrayOffsets(&World);
+    P = WorldPosition(20,0,0);
+    UpdateWorldLocation(&World, P, Dim);
 
-    Logn(" ------------------ Test 3 ------------------");
-    TestNeighbors(&World,WorldPosition(UINT32_MAX/2,UINT32_MAX/2,UINT32_MAX/2));
-    //TestNeighbors(&World,WorldPosition(20,20,20));
-    //TestNeighbors(&World,WorldPosition(20,36,20));
+    UpdateWorldLocation(&World, P, Dim);
+
+    v3 DiffP = Substract(&World, P, P2);
+    Logn("Diff: %f %f %f",DiffP.x, DiffP.y, DiffP.z);
 
     return 0;
 

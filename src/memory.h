@@ -18,6 +18,8 @@ NewMemoryArena(void * Base, u32 Size);
 void *
 PushSize_(memory_arena * Arena, u32 Size);
 
+void
+MemCopy(u8 * Dest,u8 * Src,u32 EntitySize);
 
 #define MEMORY_H
 #endif

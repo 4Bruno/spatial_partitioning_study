@@ -5,14 +5,16 @@
 
 #define ArrayCount(a) (sizeof(a) / sizeof(a[0]))
 #define Assert(exp) if (!(exp)) { *(volatile int *)0 = 0; } 
+#define IS_NULL(ptr) ((ptr) == 0)
+#define IS_NOT_NULL(ptr) ((ptr) != 0)
 
 #define internal static
 
 #define Kilobytes(x) x * 1024
 #define Megabytes(x) Kilobytes(x) * 1024
 
-#define Log(format, ...) printf(format, __VA_ARGS__)
-#define Logn(format, ...) printf(format "\n", __VA_ARGS__)
+#define Log(format, ...) printf(format, __VA_ARGS__ )
+#define Logn(format, ...) printf(format "\n", __VA_ARGS__ )
 
 typedef uint8_t u8;
 typedef uint16_t u16;

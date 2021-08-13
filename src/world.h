@@ -1,4 +1,5 @@
 #ifndef WORLD_H
+#define WORLD_H
 /*
  * https://www10.cs.fau.de/publications/theses/2009/Schornbaum_SA_2009.pdf
  */
@@ -8,6 +9,8 @@
 #include "math.h"
 
 #define MAX_WORLD_ENTITY_COUNT (1 << 14)
+#define LOG_WORLD_POS(P) Logn("WorldPos X:%i Y:%i Z:%i Offsets: X:%f Y:%f Z:%f", P.x, P.y, P.z, P._Offset.x,P._Offset.y,P._Offset.z);
+
 
 struct world_pos
 {
@@ -15,9 +18,29 @@ struct world_pos
     // using float allows for a 4 Kilometers world
     // (where objects are size of 0.02 mm - grand of sand)
     // by using u32 x/y/z we have more size
-    u32 x, y ,z;
+    i32 x, y ,z;
     // Within our grid cell, float precission offset
     v3 _Offset;
+};
+
+enum component_flag
+{
+    component_flag_none       = 0,
+    component_flag_delete     = (1 << 1),
+    component_flag_collision  = (1 << 2)
+};
+
+struct entity_id
+{
+    u32 ID;
+};
+
+struct entity
+{
+    entity_id ID;    
+    world_pos WorldP;
+    v3 P;
+    component_flag Flags;
 };
 
 /*
@@ -47,7 +70,7 @@ struct cell_neighbor_offset
 struct world_cell
 {
     // uniquely identifies cell
-    u32 x, y , z;
+    i32 x, y , z;
     u32 HashIndex;
 
     cell_neighbor_offset * Neighbor;
@@ -59,14 +82,24 @@ struct world_cell
 };
 
 /*
- * Spatial partition simple grid
- * It uses hash based on x,y,z cell position
+ * Spatial partition:
+ * uniform grid open hashing
+ * Christer Ericson Chapter 7
+ * Implementation based on other paper:
+ * https://www10.cs.fau.de/publications/theses/2009/Schornbaum_SA_2009.pdf
+ *
+ * World has:
+ * - HashGrid 
+ *   For storaging world data
+ * - ActiveEntities
+ *   Cached (duplicated) data for entities unpacked
  */
 struct world
 {
     // arbitrary for memory/speed trade-off
     // MUST be power of 2 - preferred 16
     v3 GridCellDimInMeters;
+    v3 OneOverGridCellDimInMeters;
 
     // used for unique entity ID
     u32 TotalWorldEntities;
@@ -89,6 +122,10 @@ struct world
 
     memory_arena * Arena;
 
+    world_pos CurrentWorldP;
+    entity *  ActiveEntities;
+    u32       ActiveEntitiesCount;
+
 };
 
 struct neighbor_iterator
@@ -97,20 +134,8 @@ struct neighbor_iterator
     u32 CurrentNeighborIndex;
     cell_neighbor_offset * Neighbors;
     u32 CenterHashIndex;
-    u32 x,y,z;
+    i32 x,y,z;
     b32 CanContinue;
-};
-
-struct entity_id
-{
-    u32 ID;
-};
-
-struct entity
-{
-    entity_id ID;    
-    world_pos WorldP;
-    v3 P;
 };
 
 
@@ -132,5 +157,20 @@ GetNeighborIterator(world * World,entity * Entity);
 void
 AdvanceIterator(world * World, neighbor_iterator * Iterator);
 
-#define WORLD
+world_pos
+MapIntoCell(world * World, world_pos P, v3 dP);
+
+void
+UpdateWorldLocation(world * World, world_pos Center, v3 QueryDim);
+
+v3
+Substract(world * World, world_pos To, world_pos From);
+
+inline b32
+EntityHasFlag(entity * Entity, component_flag Flag)
+{
+    b32 HasFlag = (Entity->Flags & Flag);
+    return HasFlag;
+}
+
 #endif

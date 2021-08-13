@@ -22,3 +22,17 @@ PushSize_(memory_arena * Arena, u32 Size)
 
     return StartingAddress;
 }
+
+void
+MemCopy(u8 * Dest,u8 * Src,u32 EntitySize)
+{
+    Assert(Dest);
+    Assert(Src);
+    Assert(EntitySize > 0);
+    for (u32 b = 0;
+            b < EntitySize;
+            ++b)
+    {
+        Dest[b] = Src[b];
+    }
+}
